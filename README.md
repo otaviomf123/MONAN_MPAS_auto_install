@@ -2,9 +2,9 @@
 
 Script automatizado para instalação das dependências do MPAS (Model for Prediction Across Scales) e MONAN (Model for Ocean-laNd-Atmosphere PredictioN) em sistemas Linux.
 
-## Sobre o Modelo
+## Sobre o Projeto
 
-O **MPAS** é um modelo  colaborativo para desenvolvimento de componentes de simulação da atmosfera, oceano e outros sistemas terrestres para uso em estudos climáticos, climáticos regionais e meteorológicos. Desenvolvido pelo Los Alamos National Laboratory e National Center for Atmospheric Research.
+O **MPAS** é um projeto colaborativo para desenvolvimento de componentes de simulação da atmosfera, oceano e outros sistemas terrestres para uso em estudos climáticos, climáticos regionais e meteorológicos. Desenvolvido pelo Los Alamos National Laboratory e National Center for Atmospheric Research.
 
 O **MONAN** é um modelo comunitário do Sistema Terrestre Unificado gerenciado pelo INPE que tem sua estrutura de versão inicial (0.1.0) baseada no núcleo dinâmico do MPAS 8.0.1.
 
@@ -58,6 +58,11 @@ sudo yum install wget tar gcc gfortran gcc-c++ make cmake git
 sudo dnf install wget tar gcc gfortran gcc-c++ make cmake git
 ```
 
+### Requisitos de Hardware
+- Mínimo 4GB RAM (8GB+ recomendado)
+- Pelo menos 5GB de espaço livre em disco
+- Processador multi-core (compilação usará todos os núcleos disponíveis)
+
 ## Instalação
 
 ### Instalação Rápida
@@ -72,6 +77,17 @@ cd MONAN_MPAS_auto_install
 ```bash
 chmod +x install_mpas_monan_dependencies.sh
 ./install_mpas_monan_dependencies.sh
+```
+
+3. Configure o ambiente (adicione ao ~/.bashrc as variáveis mostradas na seção seguinte):
+```bash
+source ~/.bashrc
+```
+
+4. Teste a instalação:
+```bash
+chmod +x test_dependencies.sh
+./test_dependencies.sh
 ```
 
 ### Personalização dos Diretórios
@@ -96,9 +112,23 @@ Após a instalação bem-sucedida, adicione as seguintes linhas ao seu arquivo `
 # Configuração MPAS/MONAN
 export PATH=$HOME/libs/bin:$PATH
 export LD_LIBRARY_PATH=$HOME/libs/lib:$LD_LIBRARY_PATH
+
+# Configurações dos compiladores
+export SERIAL_FC=gfortran
+export SERIAL_F77=gfortran
+export SERIAL_CC=gcc
+export SERIAL_CXX=g++
+export MPI_FC=mpif90
+export MPI_F77=mpif77
+export MPI_CC=mpicc
+export MPI_CXX=mpic++
+
+# Caminhos das bibliotecas
 export NETCDF=$HOME/libs
 export PNETCDF=$HOME/libs
 export PIO=$HOME/libs
+
+# Variáveis para compilação do MPAS/MONAN
 export MPAS_EXTERNAL_LIBS="-L$HOME/libs/lib -lhdf5_hl -lhdf5 -ldl -lz"
 export MPAS_EXTERNAL_INCLUDES="-I$HOME/libs/include"
 ```
@@ -108,7 +138,16 @@ Depois execute:
 source ~/.bashrc
 ```
 
-## Testando a Instalação
+### Testando a Instalação Automaticamente
+
+Execute o script de teste incluso para verificar todas as dependências:
+
+```bash
+chmod +x test_dependencies.sh
+./test_dependencies.sh
+```
+
+### Testando Manualmente
 
 Para verificar se a instalação foi bem-sucedida, teste os seguintes comandos:
 
@@ -163,9 +202,10 @@ make gfortran CORE=atmosphere
    - Verifique se a instalação foi concluída com sucesso
    - Verifique as permissões dos arquivos
 
-4. **MPI não encontrado:**
-   - Certifique-se de que o diretório bin da instalação está no seu PATH
-   - Tente recarregar seu shell ou executar `source ~/.bashrc`
+4. **Configurações dos compiladores incorretas:**
+   - Verifique se as variáveis FC, CC, F77, CXX estão definidas corretamente
+   - Certifique-se de que os compiladores MPI estão funcionando (mpicc, mpif90)
+   - Execute os testes para verificar a compilação
 
 ### Versões das Bibliotecas
 
@@ -183,11 +223,28 @@ O script instala estas versões específicas (testadas e compatíveis):
 
 Após a instalação, as seguintes variáveis de ambiente são configuradas:
 
+### Caminhos das Bibliotecas
 | Variável | Descrição |
 |----------|-----------|
 | `NETCDF` | Caminho para instalação do NetCDF |
 | `PNETCDF` | Caminho para instalação do Parallel-netCDF |
 | `PIO` | Caminho para instalação do PIO |
+
+### Configurações dos Compiladores
+| Variável | Descrição |
+|----------|-----------|
+| `SERIAL_FC` | Compilador Fortran serial (gfortran) |
+| `SERIAL_F77` | Compilador Fortran 77 serial (gfortran) |
+| `SERIAL_CC` | Compilador C serial (gcc) |
+| `SERIAL_CXX` | Compilador C++ serial (g++) |
+| `MPI_FC` | Compilador Fortran MPI (mpif90) |
+| `MPI_F77` | Compilador Fortran 77 MPI (mpif77) |
+| `MPI_CC` | Compilador C MPI (mpicc) |
+| `MPI_CXX` | Compilador C++ MPI (mpic++) |
+
+### Configurações para Compilação MPAS/MONAN
+| Variável | Descrição |
+|----------|-----------|
 | `MPAS_EXTERNAL_LIBS` | Flags de linkagem das bibliotecas para compilação do MPAS |
 | `MPAS_EXTERNAL_INCLUDES` | Caminhos de include para compilação do MPAS |
 
