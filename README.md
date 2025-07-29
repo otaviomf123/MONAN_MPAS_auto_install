@@ -2,9 +2,9 @@
 
 Script automatizado para instalação das dependências do MPAS (Model for Prediction Across Scales) e MONAN (Model for Ocean-laNd-Atmosphere PredictioN) em sistemas Linux.
 
-## Sobre o Projeto
+## Sobre o Modelo
 
-O **MPAS** é um projeto colaborativo para desenvolvimento de componentes de simulação da atmosfera, oceano e outros sistemas terrestres para uso em estudos climáticos, climáticos regionais e meteorológicos. Desenvolvido pelo Los Alamos National Laboratory e National Center for Atmospheric Research.
+O **MPAS** é um modelo  colaborativo para desenvolvimento de componentes de simulação da atmosfera, oceano e outros sistemas terrestres para uso em estudos climáticos, climáticos regionais e meteorológicos. Desenvolvido pelo Los Alamos National Laboratory e National Center for Atmospheric Research.
 
 O **MONAN** é um modelo comunitário do Sistema Terrestre Unificado gerenciado pelo INPE que tem sua estrutura de versão inicial (0.1.0) baseada no núcleo dinâmico do MPAS 8.0.1.
 
