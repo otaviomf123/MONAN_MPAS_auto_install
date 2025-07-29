@@ -58,11 +58,6 @@ sudo yum install wget tar gcc gfortran gcc-c++ make cmake git
 sudo dnf install wget tar gcc gfortran gcc-c++ make cmake git
 ```
 
-### Requisitos de Hardware
-- Mínimo 4GB RAM (8GB+ recomendado)
-- Pelo menos 5GB de espaço livre em disco
-- Processador multi-core (compilação usará todos os núcleos disponíveis)
-
 ## Instalação
 
 ### Instalação Rápida
