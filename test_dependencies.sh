@@ -37,8 +37,10 @@ print_header "Teste das Dependências MPAS/MONAN"
 
 # Configurar caminhos padrão se não estiverem definidos
 LIBBASE=${LIBBASE:-$HOME/libs}
+GRIB2DIR=${GRIB2DIR:-$LIBBASE/grib2}
 
 echo "Diretório de bibliotecas: $LIBBASE"
+echo "Diretório GRIB2: $GRIB2DIR"
 echo ""
 
 # Variável para contar falhas
@@ -87,6 +89,12 @@ run_test "cmake" "command -v cmake"
 print_test "git"
 run_test "git" "command -v git"
 
+print_test "python3"
+run_test "python3" "command -v python3"
+
+print_test "pip3"
+run_test "pip3" "command -v pip3"
+
 echo ""
 
 #######################################
@@ -128,11 +136,36 @@ run_test "nc-config" "command -v nc-config"
 print_test "HDF5 (h5dump)"
 run_test "h5dump" "command -v h5dump"
 
-# Verificar arquivos de biblioteca
-libraries=("libnetcdf.a" "libnetcdff.a" "libhdf5.a" "libpnetcdf.a" "libz.a")
+print_test "CMake (versão 3.31.6)"
+if command -v cmake &>/dev/null; then
+    CMAKE_VER=$(cmake --version | head -n1 | awk '{print $3}')
+    if [[ "$CMAKE_VER" == "3.31.6" ]]; then
+        print_pass
+    else
+        print_warning
+        echo "  (versão atual: $CMAKE_VER, requerida: 3.31.6)"
+        ((FAILED_TESTS++))
+    fi
+else
+    print_fail
+    ((FAILED_TESTS++))
+fi
+((TOTAL_TESTS++))
+
+# Verificar arquivos de biblioteca principais
+libraries=("libnetcdf.a" "libnetcdff.a" "libhdf5.a" "libpnetcdf.a" "libz.a" "libpio.a")
 for lib in "${libraries[@]}"; do
     print_test "$lib"
     run_test "$lib" "test -f $LIBBASE/lib/$lib"
+done
+
+# Verificar bibliotecas GRIB2
+echo ""
+echo -e "${BLUE}Bibliotecas GRIB2:${NC}"
+grib2_libs=("libpng.a" "libjasper.a")
+for lib in "${grib2_libs[@]}"; do
+    print_test "$lib"
+    run_test "$lib" "test -f $GRIB2DIR/lib/$lib"
 done
 
 echo ""
@@ -144,6 +177,20 @@ echo -e "${YELLOW}4. Verificando Variáveis de Ambiente${NC}"
 
 env_vars=("PATH" "LD_LIBRARY_PATH" "NETCDF" "PNETCDF" "PIO")
 for var in "${env_vars[@]}"; do
+    print_test "variável $var"
+    if [[ -n "${!var}" ]]; then
+        print_pass
+    else
+        print_fail
+        ((FAILED_TESTS++))
+    fi
+    ((TOTAL_TESTS++))
+done
+
+echo ""
+echo -e "${BLUE}Variáveis GRIB2:${NC}"
+grib2_vars=("GRIB2DIR" "JASPERLIB" "JASPERINC")
+for var in "${grib2_vars[@]}"; do
     print_test "variável $var"
     if [[ -n "${!var}" ]]; then
         print_pass
@@ -246,10 +293,77 @@ if command -v nc-config &>/dev/null; then
         ((FAILED_TESTS++))
     fi
     ((TOTAL_TESTS++))
+    
+    print_test "nc-config --version"
+    if nc-config --version &>/dev/null; then
+        NETCDF_VER=$(nc-config --version)
+        echo -e "${GREEN}PASSOU${NC} ($NETCDF_VER)"
+    else
+        print_fail
+        ((FAILED_TESTS++))
+    fi
+    ((TOTAL_TESTS++))
 else
     print_test "nc-config disponível"
     print_fail
     ((FAILED_TESTS++))
+    ((TOTAL_TESTS++))
+fi
+
+echo ""
+
+#######################################
+# Teste 7: Verificar estrutura de diretórios
+#######################################
+echo -e "${YELLOW}7. Verificando Estrutura de Diretórios${NC}"
+
+directories=("$LIBBASE/bin" "$LIBBASE/lib" "$LIBBASE/include" "$GRIB2DIR/lib" "$GRIB2DIR/include")
+for dir in "${directories[@]}"; do
+    print_test "diretório $(basename $dir)"
+    run_test "dir_$dir" "test -d $dir"
+done
+
+echo ""
+
+#######################################
+# Teste 8: Verificar headers importantes
+#######################################
+echo -e "${YELLOW}8. Verificando Headers Importantes${NC}"
+
+headers=("netcdf.h" "hdf5.h" "mpi.h" "png.h" "jasper/jasper.h")
+header_paths=("$LIBBASE/include/netcdf.h" "$LIBBASE/include/hdf5.h" "$LIBBASE/include/mpi.h" "$GRIB2DIR/include/png.h" "$GRIB2DIR/include/jasper/jasper.h")
+
+for i in "${!headers[@]}"; do
+    print_test "${headers[$i]}"
+    run_test "header_${headers[$i]}" "test -f ${header_paths[$i]}"
+done
+
+echo ""
+
+#######################################
+# Teste 9: Verificar versões das bibliotecas
+#######################################
+echo -e "${YELLOW}9. Verificando Versões das Bibliotecas${NC}"
+
+if command -v mpicc &>/dev/null; then
+    print_test "MPICH versão"
+    MPI_VER=$(mpicc --version 2>/dev/null | head -n1)
+    if [[ -n "$MPI_VER" ]]; then
+        echo -e "${GREEN}PASSOU${NC} ($MPI_VER)"
+    else
+        print_warning
+    fi
+    ((TOTAL_TESTS++))
+fi
+
+if command -v h5dump &>/dev/null; then
+    print_test "HDF5 versão"
+    HDF5_VER=$(h5dump --version 2>/dev/null | head -n1 | awk '{print $3}')
+    if [[ -n "$HDF5_VER" ]]; then
+        echo -e "${GREEN}PASSOU${NC} (versão $HDF5_VER)"
+    else
+        print_warning
+    fi
     ((TOTAL_TESTS++))
 fi
 
@@ -263,10 +377,18 @@ print_header "Resumo dos Testes"
 echo "Total de testes executados: $TOTAL_TESTS"
 echo "Testes que falharam: $FAILED_TESTS"
 echo "Testes que passaram: $((TOTAL_TESTS - FAILED_TESTS))"
+PASS_PERCENT=$((100 * (TOTAL_TESTS - FAILED_TESTS) / TOTAL_TESTS))
+echo "Taxa de sucesso: ${PASS_PERCENT}%"
 echo ""
 
 if [ $FAILED_TESTS -eq 0 ]; then
     echo -e "${GREEN}✓ Todos os testes passaram! As dependências MPAS/MONAN estão prontas.${NC}"
+    echo ""
+    echo "Bibliotecas instaladas:"
+    echo "  - MPICH, zlib, HDF5, Parallel-netCDF"
+    echo "  - NetCDF-C, NetCDF-Fortran, PIO"
+    echo "  - libpng, jasper (GRIB2)"
+    echo ""
     echo "Você pode prosseguir com a compilação do MPAS ou MONAN."
     exit 0
 else
@@ -277,5 +399,9 @@ else
     echo "2. Certifique-se de que as variáveis de ambiente estão configuradas no ~/.bashrc"
     echo "3. Execute 'source ~/.bashrc' para recarregar o ambiente"
     echo "4. Verifique se todos os pacotes do sistema necessários estão instalados"
+    echo "5. Para CMake 3.31.6, execute: pip3 install --user cmake==3.31.6"
+    echo ""
+    echo "Para reinstalar, execute:"
+    echo "  ./install_mpas_monan_dependencies.sh"
     exit 1
 fi
