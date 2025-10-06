@@ -12,21 +12,24 @@ set -e
 # Diretórios de instalação
 export LIBSRC=${LIBSRC:-$HOME/lib_repo}
 export LIBBASE=${LIBBASE:-$HOME/libs}
+export GRIB2DIR=${GRIB2DIR:-$LIBBASE/grib2}
 
 echo "=========================================="
 echo " Instalação das Dependências MPAS/MONAN"
 echo "=========================================="
 echo "Diretório de fontes: $LIBSRC"
 echo "Diretório de instalação: $LIBBASE"
+echo "Diretório GRIB2: $GRIB2DIR"
 echo ""
 
 # Criar diretórios
 mkdir -p $LIBSRC
 mkdir -p $LIBBASE
+mkdir -p $GRIB2DIR
 
 # Verificar dependências do sistema
 echo "Verificando dependências do sistema..."
-required_tools=("wget" "tar" "gcc" "gfortran" "g++" "make" "cmake" "git")
+required_tools=("wget" "tar" "gcc" "gfortran" "g++" "make" "cmake" "git" "python3" "pip3")
 missing_tools=()
 
 for tool in "${required_tools[@]}"; do
@@ -39,12 +42,27 @@ if [ ${#missing_tools[@]} -ne 0 ]; then
     echo "ERRO: Ferramentas necessárias não encontradas: ${missing_tools[*]}"
     echo ""
     echo "Para instalar no Ubuntu/Debian:"
-    echo "sudo apt-get install wget tar gcc gfortran g++ make cmake git"
+    echo "sudo apt-get install wget tar gcc gfortran g++ make cmake git python3 python3-pip"
     echo ""
     echo "Para instalar no CentOS/RHEL:"
-    echo "sudo yum install wget tar gcc gfortran gcc-c++ make cmake git"
+    echo "sudo yum install wget tar gcc gfortran gcc-c++ make cmake git python3 python3-pip"
     echo ""
     exit 1
+fi
+
+# Verificar e instalar versão correta do CMake via pip
+echo "Verificando versão do CMake..."
+CMAKE_VERSION=$(cmake --version | head -n1 | awk '{print $3}')
+REQUIRED_CMAKE="3.31.6"
+
+if [[ "$CMAKE_VERSION" != "$REQUIRED_CMAKE" ]]; then
+    echo "Versão do CMake ($CMAKE_VERSION) diferente da requerida ($REQUIRED_CMAKE)"
+    echo "Instalando CMake $REQUIRED_CMAKE via pip..."
+    pip3 install --user cmake==$REQUIRED_CMAKE
+    export PATH=$HOME/.local/bin:$PATH
+    echo "CMake $REQUIRED_CMAKE instalado com sucesso"
+else
+    echo "CMake $REQUIRED_CMAKE já está instalado"
 fi
 
 # Configurações dos compiladores
@@ -101,6 +119,42 @@ if [[ ! -f "$LIBBASE/lib/libz.a" ]]; then
     echo "zlib instalado com sucesso"
 else
     echo "zlib já está instalado, pulando..."
+fi
+
+########################################
+# libpng (para GRIB2)
+########################################
+echo "Instalando libpng..."
+if [[ ! -f "$GRIB2DIR/lib/libpng.a" ]]; then
+    wget -c https://www2.mmm.ucar.edu/wrf/OnLineTutorial/compile_tutorial/tar_files/libpng-1.2.50.tar.gz
+    tar xzvf libpng-1.2.50.tar.gz
+    cd libpng-1.2.50
+    ./configure --prefix=$GRIB2DIR --disable-shared --enable-static
+    make -j 4
+    make install
+    cd ..
+    rm -rf libpng*
+    echo "libpng instalado com sucesso"
+else
+    echo "libpng já está instalado, pulando..."
+fi
+
+########################################
+# jasper (para GRIB2)
+########################################
+echo "Instalando jasper..."
+if [[ ! -f "$GRIB2DIR/lib/libjasper.a" ]]; then
+    wget -c https://www2.mmm.ucar.edu/wrf/OnLineTutorial/compile_tutorial/tar_files/jasper-1.900.1.tar.gz
+    tar xzvf jasper-1.900.1.tar.gz
+    cd jasper-1.900.1
+    ./configure --prefix=$GRIB2DIR
+    make -j 4
+    make install
+    cd ..
+    rm -rf jasper*
+    echo "jasper instalado com sucesso"
+else
+    echo "jasper já está instalado, pulando..."
 fi
 
 ########################################
@@ -208,7 +262,14 @@ if [[ ! -f "$LIBBASE/lib/libpio.a" ]]; then
     cd pio
     export CC=$MPI_CC
     export FC=$MPI_FC
-    cmake -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$NETCDF -DCMAKE_INSTALL_PREFIX=$LIBBASE -DPIO_USE_MALLOC=ON -DCMAKE_VERBOSE_MAKEFILE=1 -DPIO_ENABLE_TIMING=OFF ../ParallelIO
+    
+    # Verificar versão do CMake antes de compilar PIO
+    echo "Verificando CMake para compilação do PIO..."
+    CMAKE_BIN=$(which cmake)
+    CMAKE_VER=$($CMAKE_BIN --version | head -n1 | awk '{print $3}')
+    echo "Usando CMake versão: $CMAKE_VER no caminho: $CMAKE_BIN"
+    
+    $CMAKE_BIN -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$NETCDF -DCMAKE_INSTALL_PREFIX=$LIBBASE -DPIO_USE_MALLOC=ON -DCMAKE_VERBOSE_MAKEFILE=1 -DPIO_ENABLE_TIMING=OFF ../ParallelIO
     make
     make install
     cd ..
@@ -226,15 +287,21 @@ echo "=========================================="
 echo " Instalação Concluída com Sucesso!"
 echo "=========================================="
 echo "Bibliotecas instaladas em: $LIBBASE"
+echo "Bibliotecas GRIB2 instaladas em: $GRIB2DIR"
 echo ""
 echo "Para usar as bibliotecas, adicione as seguintes linhas ao seu ~/.bashrc:"
 echo ""
 echo "# Configuração MPAS/MONAN"
 echo "export PATH=$LIBBASE/bin:\$PATH"
+echo "export PATH=\$HOME/.local/bin:\$PATH  # Para CMake do pip"
 echo "export LD_LIBRARY_PATH=$LIBBASE/lib:\$LD_LIBRARY_PATH"
+echo "export LD_LIBRARY_PATH=$GRIB2DIR/lib:\$LD_LIBRARY_PATH"
 echo "export NETCDF=$LIBBASE"
 echo "export PNETCDF=$LIBBASE"
 echo "export PIO=$LIBBASE"
+echo "export GRIB2DIR=$GRIB2DIR"
+echo "export JASPERLIB=$GRIB2DIR/lib"
+echo "export JASPERINC=$GRIB2DIR/include"
 echo "export MPAS_EXTERNAL_LIBS=\"-L$LIBBASE/lib -lhdf5_hl -lhdf5 -ldl -lz\""
 echo "export MPAS_EXTERNAL_INCLUDES=\"-I$LIBBASE/include\""
 echo ""
