@@ -258,23 +258,64 @@ if [[ ! -f "$LIBBASE/lib/libpio.a" ]]; then
     git checkout -b pio-2.6.2 pio2_6_2 2>/dev/null || git checkout pio-2.6.2
     export PIOSRC=`pwd`
     cd ..
+    
+    # Limpar diretório de build anterior se existir
+    rm -rf pio
     mkdir -p pio
     cd pio
+    
     export CC=$MPI_CC
     export FC=$MPI_FC
     
     # Verificar versão do CMake antes de compilar PIO
     echo "Verificando CMake para compilação do PIO..."
-    CMAKE_BIN=$(which cmake)
-    CMAKE_VER=$($CMAKE_BIN --version | head -n1 | awk '{print $3}')
-    echo "Usando CMake versão: $CMAKE_VER no caminho: $CMAKE_BIN"
+    CMAKE_CMD="cmake"
     
-    $CMAKE_BIN -DNetCDF_C_PATH=$NETCDF -DNetCDF_Fortran_PATH=$NETCDF -DPnetCDF_PATH=$PNETCDF -DHDF5_PATH=$NETCDF -DCMAKE_INSTALL_PREFIX=$LIBBASE -DPIO_USE_MALLOC=ON -DCMAKE_VERBOSE_MAKEFILE=1 -DPIO_ENABLE_TIMING=OFF ../ParallelIO
-    make
+    # Tentar usar cmake do pip primeiro
+    if command -v $HOME/.local/bin/cmake &>/dev/null; then
+        CMAKE_CMD="$HOME/.local/bin/cmake"
+        echo "Usando CMake do pip: $CMAKE_CMD"
+    else
+        echo "Usando CMake do sistema: $CMAKE_CMD"
+    fi
+    
+    CMAKE_VER=$($CMAKE_CMD --version | head -n1 | awk '{print $3}')
+    echo "Versão do CMake: $CMAKE_VER"
+    
+    # IMPORTANTE: Definir CMAKE_INSTALL_PREFIX explicitamente
+    echo "Configurando PIO com prefix: $LIBBASE"
+    
+    $CMAKE_CMD \
+        -DCMAKE_INSTALL_PREFIX=$LIBBASE \
+        -DNetCDF_C_PATH=$NETCDF \
+        -DNetCDF_Fortran_PATH=$NETCDF \
+        -DPnetCDF_PATH=$PNETCDF \
+        -DHDF5_PATH=$NETCDF \
+        -DPIO_USE_MALLOC=ON \
+        -DCMAKE_VERBOSE_MAKEFILE=1 \
+        -DPIO_ENABLE_TIMING=OFF \
+        ../ParallelIO
+    
+    if [ $? -ne 0 ]; then
+        echo "ERRO: Falha na configuração do CMake para PIO"
+        exit 1
+    fi
+    
+    make -j 4
+    if [ $? -ne 0 ]; then
+        echo "ERRO: Falha na compilação do PIO"
+        exit 1
+    fi
+    
     make install
+    if [ $? -ne 0 ]; then
+        echo "ERRO: Falha na instalação do PIO"
+        exit 1
+    fi
+    
     cd ..
     export PIO=$LIBBASE
-    echo "PIO instalado com sucesso"
+    echo "PIO instalado com sucesso em $LIBBASE"
 else
     echo "PIO já está instalado, pulando..."
 fi
