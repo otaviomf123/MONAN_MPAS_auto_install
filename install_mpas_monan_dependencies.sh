@@ -29,7 +29,7 @@ mkdir -p $GRIB2DIR
 
 # Verificar dependências do sistema
 echo "Verificando dependências do sistema..."
-required_tools=("wget" "tar" "gcc" "gfortran" "g++" "make" "cmake" "git" "python3" "pip3")
+required_tools=("wget" "tar" "gcc" "gfortran" "g++" "make" "git" "python3" "pip3")
 missing_tools=()
 
 for tool in "${required_tools[@]}"; do
